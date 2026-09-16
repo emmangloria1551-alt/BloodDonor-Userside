@@ -1,6 +1,7 @@
+
 import 'package:flutter/material.dart';
-import 'Theme.dart';
-import 'Login.dart';
+import 'theme/app_theme.dart';
+import 'screen/login.dart';
 
 void main() {
   runApp(const CommunityBloodDonorApp());
@@ -15,7 +16,6 @@ class CommunityBloodDonorApp extends StatelessWidget {
       title: 'Community Blood Donor',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      themeMode: ThemeMode.dark,
       home: const LoginScreen(),
     );
   }
