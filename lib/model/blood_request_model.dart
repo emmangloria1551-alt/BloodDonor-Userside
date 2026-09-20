@@ -1,6 +1,8 @@
 class BloodRequest {
   final String id;
   final String name;
+  final String email;
+  final String contact;
   final String bloodType;
   final int units;
   final String hospital;
@@ -11,6 +13,8 @@ class BloodRequest {
   const BloodRequest({
     required this.id,
     required this.name,
+    required this.email,
+    required this.contact,
     required this.bloodType,
     required this.units,
     required this.hospital,
@@ -22,15 +26,15 @@ class BloodRequest {
   factory BloodRequest.fromJson(Map<String, dynamic> json) {
     return BloodRequest(
       id: json['id'].toString(),
-      name: json["name"]. toString(),
+      name: json["name"].toString(),
+      email: json['email'] as String,
+      contact: json['contact'] as String,
       bloodType: json['blood_type'] as String,
       units: json['units'] as int,
       hospital: json['hospital'] as String,
       location: json['location'] as String,
       urgency: json['urgency'] as String,
-      createdAt: DateTime.parse(
-        json['created_at'] as String,
-      ),
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
@@ -38,6 +42,8 @@ class BloodRequest {
     return {
       'id': id,
       "name": name,
+      'email': email,
+      'contact': contact,
       'blood_type': bloodType,
       'units': units,
       'hospital': hospital,

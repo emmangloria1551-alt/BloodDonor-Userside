@@ -251,20 +251,6 @@ class BloodRequestCard extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton(
         onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primaryLight,
-          side: BorderSide(
-            color: AppColors.primary.withValues(alpha: 0.5),
-          ),
-          padding: const EdgeInsets.symmetric(
-            vertical: 13,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              AppRadius.sm,
-            ),
-          ),
-        ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

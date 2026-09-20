@@ -12,11 +12,18 @@ class CommunityBloodDonorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Community Blood Donor',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      home: const LoginScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: appThemeMode,
+      builder: (context, themeMode, child) {
+        return MaterialApp(
+          title: 'Community Blood Donor',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: themeMode,
+          home: const LoginScreen(),
+        );
+      },
     );
   }
 }

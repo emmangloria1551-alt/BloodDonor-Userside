@@ -39,6 +39,15 @@ class AppColors {
       Color(0xFF0B0A0C),
     ],
   );
+
+  static const LinearGradient lightFade = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFFFFE7EA),
+      Color(0xFFFFF7F8),
+    ],
+  );
 }
 
 Color statusColor(String urgency) {

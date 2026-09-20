@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
 import 'login.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_radius.dart';
+import '../widget/app_logo.dart';
 
 class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+  final VoidCallback? onProfileTap;
+  const AppDrawer({super.key, this.onProfileTap});
 
   void _go(BuildContext context, Widget page) {
     Navigator.pop(context);
@@ -15,7 +15,9 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          Theme.of(context).drawerTheme.backgroundColor ??
+          Theme.of(context).colorScheme.surface,
       child: SafeArea(
         child: Column(
           children: [
@@ -23,14 +25,7 @@ class AppDrawer extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      gradient: AppColors.bloodGradient,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.water_drop, color: Colors.white, size: 20),
-                  ),
+                  const AppLogo(size: 36, iconSize: 20),
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
@@ -51,20 +46,34 @@ class AppDrawer extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
-                  _DrawerItem(icon: Icons.home_rounded, label: 'Home', onTap: () => _go(context, const HomeScreen())),
-                  _DrawerItem(icon: Icons.water_drop_rounded, label: 'Donate Blood', onTap: () {}),
-                  _DrawerItem(icon: Icons.search_rounded, label: 'Search Donor', onTap: () {}),
-                  _DrawerItem(icon: Icons.request_page_rounded, label: 'Request Blood', onTap: () {}),
-                  _DrawerItem(icon: Icons.calendar_month_rounded, label: 'Blood Activities', onTap: () {}),
-                  _DrawerItem(icon: Icons.receipt_long_rounded, label: 'My History', onTap: () {}),
-                  _DrawerItem(icon: Icons.notifications_rounded, label: 'Notifications', trailing: '3', onTap: () {}),
-                  _DrawerItem(icon: Icons.person_rounded, label: 'My Profile', onTap: () {}),
+                  _DrawerItem(
+                    icon: Icons.home_rounded,
+                    label: 'Home',
+                    onTap: () => _go(context, const HomeScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.water_drop_rounded,
+                    label: 'Donate Blood',
+                    onTap: () =>
+                        _go(context, const HomeScreen(initialIndex: 1)),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.bloodtype_rounded,
+                    label: 'Request Blood',
+                    onTap: () =>
+                        _go(context, const HomeScreen(initialIndex: 2)),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.history_rounded,
+                    label: 'Activity',
+                    onTap: () =>
+                        _go(context, const HomeScreen(initialIndex: 3)),
+                  ),
+
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Divider(height: 1),
                   ),
-                  _DrawerItem(icon: Icons.settings_rounded, label: 'Settings', onTap: () => Navigator.pop(context)),
-                  _DrawerItem(icon: Icons.help_outline_rounded, label: 'Help & Support', onTap: () => Navigator.pop(context)),
                   _DrawerItem(
                     icon: Icons.logout_rounded,
                     label: 'Logout',
@@ -92,38 +101,33 @@ class _DrawerItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.trailing,
     this.danger = false,
   });
 
   final IconData icon;
   final String label;
-  final String? trailing;
   final bool danger;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? AppColors.critical : AppColors.textPrimary;
+    final theme = Theme.of(context);
+    final color = danger
+        ? theme.colorScheme.error
+        : theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface;
+    final iconColor = danger
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
     return ListTile(
-      leading: Icon(icon, color: danger ? AppColors.critical : AppColors.primaryLight, size: 22),
+      leading: Icon(icon, color: iconColor, size: 22),
       title: Text(
         label,
-        style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14.5),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 14.5,
+        ),
       ),
-      trailing: trailing != null
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                trailing!,
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-              ),
-            )
-          : null,
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../widget/gradient_button.dart';
+import '../widget/app_logo.dart';
 class BloodActivityDialog {
   static void show(BuildContext context) {
     showDialog(
@@ -31,14 +32,9 @@ class _BloodActivityDialogContent extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 30),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 28),
+                const AppLogo(
+                  size: 52,
+                  iconSize: 28,
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -65,9 +61,9 @@ class _BloodActivityDialogContent extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 12),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 20)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
               ),
               child: const Column(
                 children: [
@@ -86,7 +82,7 @@ class _BloodActivityDialogContent extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 18),
+                color: AppColors.primary.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Text(
@@ -104,7 +100,7 @@ class _BloodActivityDialogContent extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.primary.withValues(alpha: 90)),
+                        side: const BorderSide(color: AppColors.primary),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Text('CANCEL', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
