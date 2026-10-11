@@ -1,512 +1,427 @@
 import 'package:flutter/material.dart';
-
-import '../model/blood_donor.dart';
-import '../widget/blood_donor.dart';
+import '../services/api_service.dart';
+import '../services/user_session.dart';
 
 class BloodRequestScreen extends StatefulWidget {
   const BloodRequestScreen({super.key});
 
   @override
-  State<BloodRequestScreen> createState() => _BloodRequestScreenState();
+  State<BloodRequestScreen> createState() =>
+      _BloodRequestScreenState();
 }
 
 class _BloodRequestScreenState extends State<BloodRequestScreen> {
-  final _requestFormKey = GlobalKey<FormState>();
-  final _searchController = TextEditingController();
-  String? _selectedBloodType;
-  final _locationController = TextEditingController();
-  String _requestedBloodType = 'O+';
-  String _requestedUrgency = 'Urgent';
-  int _requestedUnits = 1;
-
-  final List<BloodDonor> _donors = [
-    BloodDonor(
-      name: 'Juan Dela Cruz',
-      email: 'juan.delacruz@example.com',
-      bloodType: 'O+',
-      contact: '0917 123 4567',
-      location: 'Quezon City',
-      unitsNeeded: 2,
-      urgency: 'Urgent',
-      requestedAt: DateTime(2026, 9, 16),
-      isAvailable: true,
-    ),
-  ];
+  List<Map<String, dynamic>> donors = [];
+  bool loadingDonors = true;
+  String? donorError;
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    _locationController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    loadDonors();
   }
 
-  Future<void> _showCreateRequestDialog() async {
-    _locationController.clear();
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final theme = Theme.of(context);
-            final foregroundColor = theme.colorScheme.onSurface;
-            final iconColor = theme.colorScheme.primary;
+  Future<void> loadDonors() async {
+    setState(() {
+      loadingDonors = true;
+      donorError = null;
+    });
 
-            return AlertDialog(
-              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              title: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.bloodtype_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+    final result = await ApiService.getDonors();
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final data = result['donors'];
+
+      setState(() {
+        donors = data is List
+            ? data
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
+            : [];
+        loadingDonors = false;
+      });
+    } else {
+      setState(() {
+        loadingDonors = false;
+        donorError = result['message']?.toString() ??
+            'Unable to load donors.';
+      });
+    }
+  }
+
+  void createRequest() {
+    final patientNameController = TextEditingController();
+    final hospitalController = TextEditingController();
+    final notesController = TextEditingController();
+
+    String bloodType = 'O+';
+    String units = '1';
+    String urgency = 'Normal';
+    bool submitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> submitRequest() async {
+            if (patientNameController.text.trim().isEmpty ||
+                hospitalController.text.trim().isEmpty) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Please enter the patient name and hospital.',
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Create Blood Request',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: foregroundColor,
-                      ),
-                    ),
+                ),
+              );
+              return;
+            }
+
+            final int? userId = UserSession.userId;
+
+            if (userId == null) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Please login again.'),
+                ),
+              );
+              return;
+            }
+
+            final patientName = patientNameController.text.trim();
+            final hospital = hospitalController.text.trim();
+            final selectedBloodType = bloodType;
+            final selectedUnits = int.parse(units);
+            final selectedUrgency = urgency;
+            final additionalNotes = notesController.text.trim();
+
+            setDialogState(() => submitting = true);
+
+            final result = await ApiService.createBloodRequest(
+              userId: userId,
+              patientName: patientName,
+              bloodType: selectedBloodType,
+              unitsNeeded: selectedUnits,
+              hospital: hospital,
+              notes: 'Urgency: $selectedUrgency\n$additionalNotes',
+            );
+
+            if (!dialogContext.mounted || !mounted) return;
+
+            if (result['success'] == true) {
+              Navigator.of(dialogContext).pop();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Blood request submitted successfully!',
                   ),
-                ],
-              ),
-              content: SingleChildScrollView(
+                  backgroundColor: Colors.green,
+                ),
+              );
+
+              patientNameController.dispose();
+              hospitalController.dispose();
+              notesController.dispose();
+            } else {
+              setDialogState(() => submitting = false);
+
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    result['message']?.toString() ??
+                        'Failed to submit blood request.',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Create Blood Request'),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 400,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Form(
-                      key: _requestFormKey,
-                      child: Column(
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Tell us what is needed so nearby donors can respond quickly.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.textTheme.bodySmall?.color,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          DropdownButtonFormField<String>(
-                            initialValue: _requestedBloodType,
-                            decoration: InputDecoration(
-                              labelText: 'Blood type',
-                              prefixIcon: Icon(
-                                Icons.bloodtype_outlined,
-                                color: iconColor,
-                              ),
-                            ),
-                            items:
-                                const [
-                                      'A+',
-                                      'A-',
-                                      'B+',
-                                      'B-',
-                                      'AB+',
-                                      'AB-',
-                                      'O+',
-                                      'O-',
-                                    ]
-                                    .map(
-                                      (type) => DropdownMenuItem(
-                                        value: type,
-                                        child: Text(
-                                          type,
-                                          style: TextStyle(
-                                            color: foregroundColor,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                            onChanged: (value) {
+                    TextField(
+                      controller: patientNameController,
+                      enabled: !submitting,
+                      decoration: const InputDecoration(
+                        labelText: 'Patient Name',
+                        prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: bloodType,
+                      decoration: const InputDecoration(
+                        labelText: 'Blood Type',
+                        prefixIcon: Icon(Icons.bloodtype),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'A+', child: Text('A+')),
+                        DropdownMenuItem(value: 'A-', child: Text('A-')),
+                        DropdownMenuItem(value: 'B+', child: Text('B+')),
+                        DropdownMenuItem(value: 'B-', child: Text('B-')),
+                        DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                        DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                        DropdownMenuItem(value: 'O+', child: Text('O+')),
+                        DropdownMenuItem(value: 'O-', child: Text('O-')),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (value) {
                               if (value != null) {
-                                setDialogState(() {
-                                  _requestedBloodType = value;
-                                });
+                                setDialogState(() => bloodType = value);
                               }
                             },
-                          ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<int>(
-                            initialValue: _requestedUnits,
-                            decoration: InputDecoration(
-                              labelText: 'Units needed',
-                              prefixIcon: Icon(
-                                Icons.water_drop_outlined,
-                                color: iconColor,
-                              ),
-                            ),
-                            items: [1, 2, 3, 4, 5]
-                                .map(
-                                  (units) => DropdownMenuItem(
-                                    value: units,
-                                    child: Text(
-                                      '$units ${units == 1 ? 'unit' : 'units'}',
-                                      style: TextStyle(
-                                        color: foregroundColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: units,
+                      decoration: const InputDecoration(
+                        labelText: 'Units Needed',
+                        prefixIcon: Icon(Icons.water_drop),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: '1', child: Text('1 Unit')),
+                        DropdownMenuItem(value: '2', child: Text('2 Units')),
+                        DropdownMenuItem(value: '3', child: Text('3 Units')),
+                        DropdownMenuItem(value: '4', child: Text('4 Units')),
+                        DropdownMenuItem(value: '5', child: Text('5 Units')),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (value) {
                               if (value != null) {
-                                setDialogState(() {
-                                  _requestedUnits = value;
-                                });
+                                setDialogState(() => units = value);
                               }
                             },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _locationController,
-                            textCapitalization: TextCapitalization.words,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Enter a hospital or location';
-                              }
-                              return null;
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'Hospital or location',
-                              hintText: 'e.g. Community Hospital',
-                              prefixIcon: Icon(
-                                Icons.location_on_outlined,
-                                color: iconColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            initialValue: _requestedUrgency,
-                            decoration: InputDecoration(
-                              labelText: 'Urgency',
-                              prefixIcon: Icon(
-                                Icons.priority_high_rounded,
-                                color: iconColor,
-                              ),
-                            ),
-                            items: const ['Normal', 'Urgent', 'Critical']
-                                .map(
-                                  (urgency) => DropdownMenuItem(
-                                    value: urgency,
-                                    child: Text(
-                                      urgency,
-                                      style: TextStyle(
-                                        color: foregroundColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: hospitalController,
+                      enabled: !submitting,
+                      decoration: const InputDecoration(
+                        labelText: 'Hospital',
+                        prefixIcon: Icon(Icons.local_hospital),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: urgency,
+                      decoration: const InputDecoration(
+                        labelText: 'Urgency',
+                        prefixIcon: Icon(Icons.warning),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Normal',
+                          child: Text('Normal'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'High',
+                          child: Text('High'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Critical',
+                          child: Text('Critical'),
+                        ),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (value) {
                               if (value != null) {
-                                setDialogState(() {
-                                  _requestedUrgency = value;
-                                });
+                                setDialogState(() => urgency = value);
                               }
                             },
-                          ),
-                        ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesController,
+                      enabled: !submitting,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Additional Notes',
+                        prefixIcon: Icon(Icons.notes),
+                        border: OutlineInputBorder(),
                       ),
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: () {
-                    if (!_requestFormKey.currentState!.validate()) {
-                      return;
-                    }
-
-                    Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '$_requestedBloodType blood request created for '
-                          '$_requestedUnits ${_requestedUnits == 1 ? 'unit' : 'units'}.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: submitting
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: submitting ? null : submitRequest,
+                child: submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
                         ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.send_rounded),
-                  label: const Text('Submit Request'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+                      )
+                    : const Text('Submit Request'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final query = _searchController.text.trim().toLowerCase();
-    final filteredDonors = _donors.where((donor) {
-      final matchesSearch =
-          query.isEmpty ||
-          donor.name.toLowerCase().contains(query) ||
-          donor.bloodType.toLowerCase().contains(query) ||
-          donor.location.toLowerCase().contains(query) ||
-          donor.contact.toLowerCase().contains(query);
-      return matchesSearch &&
-          (_selectedBloodType == null || donor.bloodType == _selectedBloodType);
-    }).toList();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Blood Requests'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: loadDonors,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh donors',
+          ),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Find a donor when it matters most.',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Search nearby requests and connect with an available donor.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search donors...',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                PopupMenuButton<String>(
-                  tooltip: 'Filter requests',
-                  onSelected: (filter) => setState(
-                    () =>
-                        _selectedBloodType = filter == 'All' ? null : filter,
-                  ),
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'All',
-                      child: Text('All blood types'),
-                    ),
-                    PopupMenuItem(value: 'A+', child: Text('A+')),
-                    PopupMenuItem(value: 'A-', child: Text('A-')),
-                    PopupMenuItem(value: 'B+', child: Text('B+')),
-                    PopupMenuItem(value: 'B-', child: Text('B-')),
-                    PopupMenuItem(value: 'AB+', child: Text('AB+')),
-                    PopupMenuItem(value: 'AB-', child: Text('AB-')),
-                    PopupMenuItem(value: 'O+', child: Text('O+')),
-                    PopupMenuItem(value: 'O-', child: Text('O-')),
-                  ],
-                  icon: Icon(
-                    Icons.tune_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_selectedBloodType != null) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Chip(
-                avatar: const Icon(Icons.bloodtype_rounded, size: 17),
-                label: Text(_selectedBloodType!),
-                onDeleted: () => setState(() => _selectedBloodType = null),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          if (filteredDonors.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 48),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.search_off_rounded,
-                    size: 52,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No blood requests found',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Try a different search or filter.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            )
-          else
-            ...filteredDonors.map(
-              (donor) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: BloodDonorCard(
-                  donor: donor,
-                  onRequestBlood: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Blood request selected for ${donor.name}',
-                        ),
-                        backgroundColor: Theme.of(context).colorScheme.error,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          const SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.25),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+          Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.bloodtype_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'No compatible donor yet?',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Your request can reach donors who are ready to help.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Create a request now and give your community a chance to save a life.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
+                const Text(
+                  'Need Blood?',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Create a blood request and find available donors.',
+                  style: TextStyle(color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _showCreateRequestDialog,
-                    icon: const Icon(Icons.bloodtype_rounded),
-                    label: const Text('Make a Blood Request'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: createRequest,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Blood Request'),
                   ),
                 ),
               ],
             ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Registered Donors',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: loadingDonors
+                ? const Center(child: CircularProgressIndicator())
+                : donorError != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(donorError!),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: loadDonors,
+                                child: const Text('Try Again'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : donors.isEmpty
+                        ? const Center(child: Text('No donors found.'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
+                            itemCount: donors.length,
+                            itemBuilder: (context, index) {
+                              final donor = donors[index];
+                              final name =
+                                  donor['name']?.toString() ??
+                                      'Unknown Donor';
+                              final blood =
+                                  donor['blood_type']?.toString() ??
+                                      'Unknown';
+                              final location =
+                                  donor['location']?.toString() ??
+                                      'Location not provided';
+                              final availability =
+                                  donor['availability']?.toString() ??
+                                      'Unknown';
+                              final available =
+                                  availability.toLowerCase() == 'available';
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    child: Text(
+                                      blood,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Text(location),
+                                  trailing: Text(
+                                    availability,
+                                    style: TextStyle(
+                                      color: available
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
           ),
         ],
       ),

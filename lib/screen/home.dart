@@ -13,6 +13,7 @@ import '../model/user_profile.dart';
 import 'notifications.dart';
 import 'activity.dart';
 import '../widget/donation_activity.dart';
+import '../services/user_session.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.initialIndex = 0});
@@ -31,13 +32,13 @@ class _HomescreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    _user = UserProfile(
-      name: 'Brylle',
-      email: 'brylle@example.com',
-      contact: '0912 345 6789',
-      address: 'Quezon City, Philippines',
-      bloodType: 'O+',
-    );
+     _user = UserProfile(
+      name: UserSession.name ?? 'User',
+      email: UserSession.email ?? '',
+      contact: 'Not provided',
+      address: 'Not provided',
+      bloodType: UserSession.bloodType ?? 'Not set',
+   );
   }
 
   Future<void> _navigateToProfile() async {
